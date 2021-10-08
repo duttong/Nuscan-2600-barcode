@@ -14,27 +14,44 @@ from time import sleep
 DEFAULT_PORT = '/dev/tty.usbmodem14701'
 
 
-def connect():
-    try:
-        ser = serial.Serial(DEFAULT_PORT, timeout=0.2, baudrate=9600, bytesize=8, parity='N', stopbits=1)
-    except serial.serialutil.SerialException:
-        sys.stderr.write(f'Could not connect to serial port: {DEFAULT_PORT}\n')
-        quit()
-        
-    print('Ready to scan\n')
-    return ser
+class Scanner():
 
-def listen(ser):
-    while True:
+    def __init__(self):
+        self.ser = self.connect()
+
+    def connect(self):
+        """ default options for a serial connection """
         try:
-            r = ser.read(100).decode()
-        except KeyboardInterrupt:
+            ser = serial.Serial(DEFAULT_PORT, timeout=0.1, baudrate=9600, bytesize=8, parity='N', stopbits=1)
+        except serial.serialutil.SerialException:
+            sys.stderr.write(f'Could not connect to serial port: {DEFAULT_PORT}\n')
             quit()
+        return ser
+
+    def listen(self, size=100):
+        """ continuous listen to serial port mode """
+        while True:
+            try:
+                r = self.ser.read(size).decode()
+            except KeyboardInterrupt:
+                quit()
             
+            if len(r) > 1:
+                print(f'bytes read: {len(r)} decoded: {r[:-1]}')
+                self.ser.reset_input_buffer()
+            sleep(.1)
+            
+    def read(self, size=100):
+        r = self.ser.read(size).decode()
         if len(r) > 1:
-            print(f'bytes read: {len(r)} decoded: {r[:-1]}')
-            ser.reset_input_buffer()
-        sleep(.1)
-            
-ser = connect()
-listen(ser)
+            self.ser.reset_input_buffer()
+            return r[:-1]       # strip off \n
+        else:
+            return None
+
+
+if __name__ == '__main__':
+
+    s = Scanner()
+    print('Ready to scan barcodes. Press Ctrl-C to quit.')
+    s.listen()
